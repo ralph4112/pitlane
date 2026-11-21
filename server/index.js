@@ -7,7 +7,7 @@ import { dataSource, one } from './db.js'
 
 const dev = process.argv.includes('--dev')
 const secure = process.env.NODE_ENV === 'production'
-const origin = process.env.APP_ORIGIN || undefined
+const origin = process.env.APP_ORIGIN || process.env.RENDER_EXTERNAL_URL || undefined
 const port = Number(process.env.PORT || '5173')
 const host = process.env.HOST || '127.0.0.1'
 const proxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0)
@@ -15,7 +15,7 @@ if (!Number.isInteger(proxyHops) || proxyHops < 0 || proxyHops > 10) {
   throw new Error('TRUST_PROXY_HOPS must be an integer from 0 to 10.')
 }
 if (secure && (!origin || new URL(origin).protocol !== 'https:' || origin !== new URL(origin).origin)) {
-  throw new Error('Set APP_ORIGIN to the public HTTPS origin in production.')
+  throw new Error('Set APP_ORIGIN to the public HTTPS origin in production, or use the URL supplied by Render.')
 }
 const db = await dataSource().initialize()
 const available = await one(db, "SELECT to_regclass('garage.user_sessions') IS NOT NULL AS installed")

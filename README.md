@@ -35,6 +35,14 @@ Payment methods include cash, card, bank transfer, and mobile money. A cashier r
 
 Run `npm ci`, `npm run db:setup`, and `npm run build`. Serve `npm start` behind an HTTPS reverse proxy with `NODE_ENV=production` and `APP_ORIGIN` set to the public HTTPS origin. Set `TRUST_PROXY_HOPS` to match your trusted proxy chain if the proxy forwards client IPs for the sign-in rate limiter. The database should be reachable by the Node server. Session cookies use HTTP-only and SameSite protections, and production cookies also require HTTPS. The database stores hashed session tokens and bcrypt password hashes.
 
+### Deploy on Render
+
+Open [Deploy to Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fralph4112%2Fpitlane) and sign in to Render. Set `ADMIN_EMAIL` and a new `ADMIN_PASSWORD` of at least 12 characters when prompted, then approve the Blueprint. Use the web service's HTTPS URL and those credentials to sign in.
+
+The [Blueprint](render.yaml) provisions a web service and a new PostgreSQL database reachable on Render's private network. Render supplies the public HTTPS URL and database connection string. On each start the service checks the schema and initializes missing records while preserving existing accounts. Set `APP_ORIGIN` to your HTTPS origin if you later switch to a custom domain.
+
+The Blueprint uses free plans for a trial deployment. Render's free PostgreSQL databases expire after 30 days. Choose a persistent paid database before storing live garage records. [Render free-plan limits](https://render.com/docs/free)
+
 The SQL migrations are [schema.sql](db/schema.sql) and [sessions.sql](db/sessions.sql). Database triggers protect stock balances, invoice snapshots, and payment totals. API validators require typed, explicitly allowed fields. Backend permissions are checked on every protected request.
 
 ## Verify

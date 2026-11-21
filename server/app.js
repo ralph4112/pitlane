@@ -30,6 +30,14 @@ export function createApp(db, { origin, secure = false, trustProxy = false } = {
   })
   app.use('/api', express.json({ limit: '128kb', strict: true }))
   app.use('/api', api)
+  api.get('/health', validate(), async (_req, res) => {
+    try {
+      await db.query('SELECT 1')
+      res.json({ status: 'ok' })
+    } catch {
+      res.status(503).json({ status: 'unavailable' })
+    }
+  })
   mountAuthentication(api, db, secure)
   api.get('/settings', validate(), async (_req, res) => {
     res.json(await one(db, 'SELECT currency,reporting_timezone FROM garage.business_settings WHERE singleton'))

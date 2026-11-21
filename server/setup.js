@@ -4,18 +4,28 @@ import { hashPassword } from './auth.js'
 import { currency, email, password, text } from './validation.js'
 
 const db = await dataSource().initialize()
+const runner = db.createQueryRunner()
+let locked = false
 try {
   const adminEmail = email.parse(process.env.ADMIN_EMAIL)
   const adminPassword = password.parse(process.env.ADMIN_PASSWORD)
   const adminName = text().parse(process.env.ADMIN_NAME || 'Garage Administrator')
   const unit = currency.parse(process.env.GARAGE_CURRENCY || 'KES')
   const timeZone = text().parse(process.env.GARAGE_TIMEZONE || 'Africa/Nairobi')
-  const existing = await one(db, "SELECT to_regclass('garage.users') IS NOT NULL AS installed")
+  await runner.query('SELECT pg_advisory_lock(8904272)')
+  locked = true
+  const existing = await one(runner, "SELECT to_regclass('garage.users') IS NOT NULL AS installed")
   if (!existing.installed) {
-    await db.query(await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8'))
+    const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8')
+    try {
+      await runner.query(schema)
+    } catch (error) {
+      await runner.query('ROLLBACK').catch(() => {})
+      throw error
+    }
   }
-  await db.query(await readFile(new URL('../db/sessions.sql', import.meta.url), 'utf8'))
-  await db.transaction(async manager => {
+  await runner.query(await readFile(new URL('../db/sessions.sql', import.meta.url), 'utf8'))
+  await runner.manager.transaction(async manager => {
     await manager.query(`INSERT INTO garage.business_settings (currency, reporting_timezone)
       VALUES ($1, $2) ON CONFLICT (singleton) DO NOTHING`, [unit, timeZone])
     await manager.query(`INSERT INTO garage.users (role_code, full_name, email, password_hash)
@@ -26,5 +36,7 @@ try {
   })
   console.log('Garage database and administrator are ready.')
 } finally {
+  if (locked) await runner.query('SELECT pg_advisory_unlock(8904272)').catch(() => {})
+  await runner.release()
   await db.destroy()
 }
